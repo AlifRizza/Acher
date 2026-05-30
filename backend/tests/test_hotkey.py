@@ -36,12 +36,13 @@ def test_parse_hotkey_rejects_empty(bad):
 def test_handler_captures_with_note_and_tags(monkeypatch):
     calls = {}
 
+    monkeypatch.setattr(hotkey.platform, "get_active_window", lambda b: None)
     monkeypatch.setattr(
         hotkey.platform, "prompt_manual_note", lambda: ("wrote tests", "work,acher")
     )
     monkeypatch.setattr(
         hotkey, "capture_manual",
-        lambda cfg, note=None, tags=None: calls.update(note=note, tags=tags) or 42,
+        lambda cfg, note=None, tags=None, active=None: calls.update(note=note, tags=tags) or 42,
     )
 
     hotkey.HotkeyListener(Config())._do_manual_capture()
@@ -55,6 +56,7 @@ def test_handler_aborts_on_cancel(monkeypatch):
         nonlocal called
         called = True
 
+    monkeypatch.setattr(hotkey.platform, "get_active_window", lambda b: None)
     monkeypatch.setattr(hotkey.platform, "prompt_manual_note", lambda: None)  # cancelled
     monkeypatch.setattr(hotkey, "capture_manual", _capture)
 
@@ -65,10 +67,11 @@ def test_handler_aborts_on_cancel(monkeypatch):
 def test_handler_empty_note_passes_none(monkeypatch):
     # Empty strings from the dialog become None so the DB stores NULL, not "".
     calls = {}
+    monkeypatch.setattr(hotkey.platform, "get_active_window", lambda b: None)
     monkeypatch.setattr(hotkey.platform, "prompt_manual_note", lambda: ("", ""))
     monkeypatch.setattr(
         hotkey, "capture_manual",
-        lambda cfg, note=None, tags=None: calls.update(note=note, tags=tags),
+        lambda cfg, note=None, tags=None, active=None: calls.update(note=note, tags=tags),
     )
     hotkey.HotkeyListener(Config())._do_manual_capture()
     assert calls == {"note": None, "tags": None}

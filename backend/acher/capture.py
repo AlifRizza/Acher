@@ -15,6 +15,7 @@ from pathlib import Path
 from .config import Config
 from .db import transaction
 from .platform import platform
+from .platform.base import ActiveWindow
 from .uploader import enqueue
 
 log = logging.getLogger(__name__)
@@ -108,15 +109,22 @@ def _capture(
     is_manual: bool,
     activity_note: str | None = None,
     tags: str | None = None,
+    active: ActiveWindow | None = None,
 ) -> int | None:
     """Shared capture path: detect window, screenshot, insert row. Returns row id.
+
+    `active` lets the caller pass the foreground window detected *earlier* — the
+    manual-capture path does this so the note/tags dialog (which steals focus)
+    doesn't make us record the dialog ("osascript") as the active app. When None
+    we detect it here, which is correct for the automatic loop.
 
     Failures (e.g. Screen Recording permission not granted) are logged but not
     raised — the daemon loop must keep running.
     """
     try:
         ts = datetime.now(timezone.utc)
-        active = platform.get_active_window(cfg.browsers)
+        if active is None:
+            active = platform.get_active_window(cfg.browsers)
         filename = _build_filename(active.app_name, active.tab_title, ts)
         dest = _month_partition_dir(ts) / filename
         platform.capture_screenshot(dest)
@@ -142,6 +150,15 @@ def capture_once(cfg: Config) -> int | None:
     return _capture(cfg, is_manual=False)
 
 
-def capture_manual(cfg: Config, note: str | None = None, tags: str | None = None) -> int | None:
-    """Capture triggered by the hotkey, tagged manual with an optional note + tags."""
-    return _capture(cfg, is_manual=True, activity_note=note, tags=tags)
+def capture_manual(
+    cfg: Config,
+    note: str | None = None,
+    tags: str | None = None,
+    active: ActiveWindow | None = None,
+) -> int | None:
+    """Capture triggered by the hotkey, tagged manual with an optional note + tags.
+
+    Pass `active` (the window detected before the note dialog opened) so the row
+    records the real foreground app, not the dialog.
+    """
+    return _capture(cfg, is_manual=True, activity_note=note, tags=tags, active=active)

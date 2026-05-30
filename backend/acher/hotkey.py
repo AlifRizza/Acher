@@ -76,12 +76,16 @@ class HotkeyListener:
 
     def _do_manual_capture(self) -> None:
         try:
+            # Detect the foreground window BEFORE opening the dialog — the note
+            # prompt steals focus, so detecting afterward records the dialog
+            # ("osascript") as the active app instead of the user's real one.
+            active = platform.get_active_window(self.cfg.browsers)
             answer = platform.prompt_manual_note()
             if answer is None:
                 log.info("manual capture cancelled by user")
                 return
             note, tags = answer
-            capture_manual(self.cfg, note=note or None, tags=tags or None)
+            capture_manual(self.cfg, note=note or None, tags=tags or None, active=active)
         except Exception:
             # Never let a hotkey handler crash take down the listener thread.
             log.exception("manual capture handler failed")

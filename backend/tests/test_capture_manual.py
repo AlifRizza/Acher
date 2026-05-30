@@ -60,3 +60,22 @@ def test_auto_capture_stays_unmanual(wired):
     row = _row(orig_txn, dbp, sid)
     assert row["is_manual"] == 0
     assert row["activity_note"] is None
+
+
+def test_manual_capture_uses_passed_active_window(wired):
+    """When `active` is supplied (hotkey path), the row records THAT window — not
+    whatever get_active_window() returns afterward (the focus-stealing dialog,
+    e.g. 'osascript'). Regression for the wrong-app manual-capture bug."""
+    dbp, orig_txn = wired
+    # Fixture stubs get_active_window -> "Code"; make live detection return the
+    # dialog to prove the passed-in window wins.
+    capture.platform.get_active_window = lambda browsers: ActiveWindow("osascript", None)
+
+    sid = capture.capture_manual(
+        Config(), note="real note", tags="a,b",
+        active=ActiveWindow(app_name="Brave Browser", tab_title="GitHub"),
+    )
+    row = _row(orig_txn, dbp, sid)
+    assert row["app_name"] == "Brave Browser"
+    assert row["tab_title"] == "GitHub"
+    assert "osascript" not in row["local_path"]
