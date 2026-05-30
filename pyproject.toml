@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acher"
+version = "0.1.0"
+description = "Acher — local-first activity tracker with screenshots, timeline, and Drive sync"
+requires-python = ">=3.10"
+# Runtime deps are added per-phase as features land, to keep the install surface
+# small and to make it obvious which dep enables which feature. Platform-specific
+# deps use PEP 508 markers so each OS only installs what it actually needs.
+dependencies = [
+  # --- Phase 2: capture daemon + active-window detection ---
+  # macOS: NSWorkspace for frontmost app. AppleScript via /usr/bin/osascript
+  # (stdlib subprocess, no python dep). Screenshot via /usr/sbin/screencapture.
+  "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+  # --- Phase 4: local read API (timeline + image serving), served by the daemon ---
+  # Core, not optional: the timeline is a primary feature and the Web UI (Phase 7)
+  # is built on this API. Bound to 127.0.0.1 only. Plain uvicorn (no [standard])
+  # to keep the dependency surface small.
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  # --- Phase 5: global hotkey for manual capture ---
+  # Cross-platform global hotkey listener. Note/tags are collected via a native
+  # OS dialog (macOS: osascript; no extra dep), so pynput is the only addition.
+  "pynput>=1.7",
+  # Windows: foreground window + process name + screenshots + tab-strip walking.
+  "pywin32>=306;     sys_platform == 'win32'",
+  "psutil>=5.9;      sys_platform == 'win32'",
+  "mss>=9.0;         sys_platform == 'win32'",
+  "Pillow>=10.0;     sys_platform == 'win32'",
+  "uiautomation>=2.0; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+# Filled in over later phases. Listed here so the user can see what's coming.
+# Install with:  pip install -e ".[dev]"
+dev = [
+  "pytest>=8",
+  "ruff>=0.4",
+  "httpx>=0.27",  # FastAPI TestClient transport
+]
+# --- Phase 3: Google Drive sync ---
+# Optional by design: Drive sync is additive, never required for core use.
+# Install only if you want cloud sync:  pip install -e ".[drive]"
+drive = [
+  "google-api-python-client>=2.0",
+  "google-auth>=2.0",
+  "google-auth-oauthlib>=1.0",
+]
+# --- Phase 8: XLSX timesheet export ---
+# Optional: CSV export uses the stdlib and always works. Install this only for
+# Excel (.xlsx) output:  pip install -e ".[export]"
+export = [
+  "openpyxl>=3.1",
+]
+
+[project.scripts]
+# CLI is fleshed out in Phase 9 (cross-platform start/stop). Phase 1 ships a stub.
+acher = "acher.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["acher*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

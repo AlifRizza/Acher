@@ -1,0 +1,8 @@
+{
+  "interval_minutes": 3,
+  "retention_period": "1_month",
+  "hotkey": "ctrl+alt+shift+s",
+  "browsers": ["Chrome", "Arc", "Brave"],
+  "drive_connected": false,
+  "port": 7823
+}
