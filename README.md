@@ -297,6 +297,14 @@ git-ignored and stored outside the repo.
 
 ---
 
+## Project status & roadmap
+
+For current feature status, outstanding work, resolved bugs, and operating
+notes, see [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — the living
+handoff doc for continuing the project.
+
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 AlifRizza
