@@ -1,23 +1,22 @@
 import { useState } from "react";
-import { Timeline } from "./pages/Timeline";
+import { DayView } from "./pages/DayView";
 import { TimesheetPage } from "./pages/TimesheetPage";
+import { Statistics } from "./pages/Statistics";
 
-type Tab = "timeline" | "timesheet";
+type Tab = "day" | "timesheet" | "statistics";
 
-// Two tabs for now: the screenshot Timeline and the Timesheet/export view.
-// A Settings page lands once its backend (settings PUT) exists.
+// Three tabs: the ManicTime-style Day timeline, the Timesheet/export view, and
+// the Statistics charts. (The earlier screenshot-grid page lives in
+// pages/Timeline.tsx but is superseded by DayView and no longer routed.)
 export default function App() {
-  const [tab, setTab] = useState<Tab>("timeline");
+  const [tab, setTab] = useState<Tab>("day");
 
   return (
     <div className="app">
       <nav className="tabs">
         <h1>Acher</h1>
-        <button
-          className={tab === "timeline" ? "tab active" : "tab"}
-          onClick={() => setTab("timeline")}
-        >
-          Timeline
+        <button className={tab === "day" ? "tab active" : "tab"} onClick={() => setTab("day")}>
+          Day
         </button>
         <button
           className={tab === "timesheet" ? "tab active" : "tab"}
@@ -25,8 +24,16 @@ export default function App() {
         >
           Timesheet
         </button>
+        <button
+          className={tab === "statistics" ? "tab active" : "tab"}
+          onClick={() => setTab("statistics")}
+        >
+          Statistics
+        </button>
       </nav>
-      {tab === "timeline" ? <Timeline /> : <TimesheetPage />}
+      {tab === "day" && <DayView />}
+      {tab === "timesheet" && <TimesheetPage />}
+      {tab === "statistics" && <Statistics />}
     </div>
   );
 }

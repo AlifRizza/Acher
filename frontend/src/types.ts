@@ -43,3 +43,13 @@ export interface Timesheet {
   total_shots: number;
   rows: TimesheetRow[];
 }
+
+// A contiguous run of same-label captures, reconstructed client-side from
+// point-in-time screenshots (see lib/timeline.ts). Used to draw timeline blocks.
+export interface Block {
+  label: string; // app name or tab title
+  startMs: number; // epoch ms of first capture in the run
+  endMs: number; // epoch ms of last capture + one interval (so blocks have width)
+  shots: Screenshot[]; // captures that make up this block, time-ordered
+}
+

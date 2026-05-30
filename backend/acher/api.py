@@ -12,6 +12,7 @@ Endpoints:
 - GET /api/stats                      timeline roll-up
 - GET /api/timesheet                  per-app time roll-up (JSON)
 - GET /api/timesheet/export           same, as a CSV / XLSX download
+- GET /api/search                     match app/tab/note/tags (timeline search)
 
 `create_app()` builds the app (used directly by tests); `make_server()` wraps it
 in a uvicorn Server the daemon runs in a background thread.
@@ -115,6 +116,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             media_type=media_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @app.get("/api/search")
+    def search(
+        q: str,
+        limit: int = Query(queries.DEFAULT_LIMIT, ge=1, le=queries.MAX_LIMIT),
+    ) -> dict:
+        # Searches app name, tab title, activity note, and tags. Read-only.
+        return queries.search(q, limit=limit, db_path=db_path)
 
     return app
 

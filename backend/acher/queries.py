@@ -204,3 +204,44 @@ def timesheet(
         "total_shots": total_shots,
         "rows": rows,
     }
+
+
+def search(query: str, *, limit: int = DEFAULT_LIMIT, db_path: Path | None = None) -> dict:
+    """Full-text-ish search across app name, tab title, activity note, and tags.
+
+    Case-insensitive substring match (SQLite LIKE) over the four free-text
+    columns, newest first. Returns the same `{total, limit, offset, items}`
+    shape as `list_screenshots` so the UI can reuse one renderer. An empty or
+    whitespace-only query returns no results (the UI shouldn't call it then).
+    """
+    limit = max(1, min(limit, MAX_LIMIT))
+    term = query.strip()
+    if not term:
+        return {"total": 0, "limit": limit, "offset": 0, "items": []}
+
+    like = f"%{term}%"
+    where = (
+        "WHERE app_name LIKE ? OR tab_title LIKE ? "
+        "OR activity_note LIKE ? OR tags LIKE ?"
+    )
+    params = [like, like, like, like]
+
+    conn = connect(db_path)
+    try:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM screenshots {where};", params
+        ).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT {_COLUMNS} FROM screenshots {where} "
+            "ORDER BY timestamp DESC, id DESC LIMIT ?;",
+            (*params, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": 0,
+        "items": [_row_to_dict(r) for r in rows],
+    }
