@@ -119,3 +119,27 @@ def test_api_activity(dbp):
     r = client.get("/api/activity")
     assert r.status_code == 200
     assert r.json()["rows"][0]["state"] == "active"
+
+
+# ---- daemon integration: capture is actually gated on presence ----
+
+
+def test_prime_makes_first_tick_accurate(monkeypatch, tmp_path):
+    """ActivityWatcher.prime() records a real sample so should_capture() is
+    correct before the background loop's first iteration."""
+    from acher import activity as act
+    from acher.activity import ActivityWatcher
+
+    # Point the watcher's DB writes at a temp file.
+    orig_txn = db.transaction
+    monkeypatch.setattr(act, "transaction", lambda db_path=None: orig_txn(tmp_path / "a.db"))
+    db.init_db(tmp_path / "a.db")
+
+    monkeypatch.setattr(act.platform, "is_screen_locked", lambda: False)
+    monkeypatch.setattr(act.platform, "get_idle_seconds", lambda: 9999)  # idle
+
+    w = ActivityWatcher(Config(idle_threshold_minutes=5))
+    assert w.should_capture() is True  # fail-open before priming
+    w.prime()
+    assert w.current_state() == "idle"
+    assert w.should_capture() is False  # accurate after priming

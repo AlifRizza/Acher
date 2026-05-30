@@ -119,6 +119,21 @@ class ActivityWatcher:
         with self._lock:
             return self._last.state if self._last else None
 
+    def prime(self) -> None:
+        """Take one synchronous sample so `should_capture()` is accurate at once.
+
+        Called before the capture loop starts, so the very first tick is gated on
+        a real reading instead of the fail-open default (which would let one
+        screenshot through even if the user is already idle/locked).
+        """
+        try:
+            presence = classify(self.cfg)
+            record_sample(presence, _now_iso())
+            with self._lock:
+                self._last = presence
+        except Exception:
+            log.exception("activity prime sample failed")
+
     def run(self) -> None:
         """Loop until stopped. Never raises — a bad sample is logged and retried."""
         log.info(

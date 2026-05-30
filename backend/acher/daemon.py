@@ -107,10 +107,35 @@ class Daemon:
         self._retention_thread.start()
         log.info("Retention worker started (period=%s)", self.cfg.retention_period)
 
+        # Activity watcher: samples presence every few seconds to build the
+        # continuous timeline AND to tell the capture loop when to pause
+        # (screen locked/off or user idle).
+        from .activity import ActivityWatcher
+
+        self._activity = ActivityWatcher(self.cfg)
+        # Prime one synchronous sample so the first capture tick is gated on a
+        # real reading, not the fail-open default (avoids a stray startup capture
+        # when the user is already idle/locked).
+        self._activity.prime()
+        self._activity_thread = threading.Thread(
+            target=self._activity.run, name="activity", daemon=True
+        )
+        self._activity_thread.start()
+        log.info(
+            "Activity watcher started (idle threshold=%d min)",
+            self.cfg.idle_threshold_minutes,
+        )
+
         interval_sec = self.cfg.interval_minutes * 60
 
         while not self._stop.is_set():
-            capture_once(self.cfg)
+            # Skip screenshots while the screen is locked/off or the user is
+            # idle — nothing useful to capture, and it keeps the timeline honest
+            # (gaps are real away-from-keyboard time).
+            if self._activity.should_capture():
+                capture_once(self.cfg)
+            else:
+                log.debug("capture skipped (state=%s)", self._activity.current_state())
             # Event-based sleep so SIGINT wakes us immediately rather than
             # waiting up to `interval_sec` for the next tick.
             self._stop.wait(timeout=interval_sec)
