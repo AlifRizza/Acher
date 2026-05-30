@@ -8,6 +8,12 @@
 
 > Acher is a learning-oriented, single-user app. The API binds to `127.0.0.1` only and is never exposed off-host.
 
+> [!NOTE]
+> **This project was entirely vibe coded** — built end to end through conversational
+> prompting with an AI agent (Claude), rather than hand-written line by line. Treat
+> it accordingly: it's a learning/experimentation project, not audited production
+> software. Review the code before relying on it.
+
 ---
 
 ## Features
