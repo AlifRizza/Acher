@@ -206,6 +206,38 @@ def timesheet(
     }
 
 
+def activity(
+    *, start: str | None = None, end: str | None = None, db_path: Path | None = None
+) -> dict:
+    """Continuous activity spans overlapping the optional [start, end] window.
+
+    Returns `{"rows": [{id, start_ts, end_ts, state, app_name, tab_title}]}`,
+    oldest first — the shape the timeline uses to draw accurate app bars and the
+    Computer Usage row. A span overlaps the window if it starts before `end` and
+    ends after `start`.
+    """
+    clauses: list[str] = []
+    params: list[object] = []
+    if end:
+        clauses.append("start_ts <= ?")
+        params.append(end)
+    if start:
+        clauses.append("end_ts >= ?")
+        params.append(start)
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+
+    conn = connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT id, start_ts, end_ts, state, app_name, tab_title "
+            f"FROM activity{where} ORDER BY start_ts;",
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+    return {"rows": [dict(r) for r in rows]}
+
+
 def search(query: str, *, limit: int = DEFAULT_LIMIT, db_path: Path | None = None) -> dict:
     """Full-text-ish search across app name, tab title, activity note, and tags.
 

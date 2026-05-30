@@ -53,3 +53,13 @@ export interface Block {
   shots: Screenshot[]; // captures that make up this block, time-ordered
 }
 
+// A continuous activity span from the backend watcher (second-accurate).
+export interface ActivitySpan {
+  id: number;
+  start_ts: string; // ISO8601 UTC
+  end_ts: string; // ISO8601 UTC
+  state: "active" | "idle" | "locked";
+  app_name: string | null;
+  tab_title: string | null;
+}
+

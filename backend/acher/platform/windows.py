@@ -80,6 +80,20 @@ class WindowsPlatform(Platform):
         tab_title = _tab_title_for_browser(hwnd, app_name, tracked_browsers)
         return ActiveWindow(app_name=app_name, tab_title=tab_title)
 
+    # ----- activity / presence -----
+
+    def get_idle_seconds(self) -> float:
+        """Seconds since last input via GetLastInputInfo. 0.0 on failure."""
+        return _win_idle_seconds()
+
+    def is_screen_locked(self) -> bool:
+        """True if the workstation is locked or the session is not active.
+
+        Detected by checking for an open desktop input handle: when the screen
+        is locked the foreground/input desktop can't be opened by our process.
+        """
+        return _win_is_locked()
+
     # ----- Phase 5: manual capture -----
 
     def prompt_manual_note(self) -> tuple[str, str] | None:
@@ -183,6 +197,51 @@ def _input_box(prompt: str, title: str) -> str | None:
 def _ps_quote(text: str) -> str:
     """Escape a string for embedding inside a single-quoted PowerShell literal."""
     return text.replace("'", "''")
+
+
+def _win_idle_seconds() -> float:
+    """Seconds since the last input via the Win32 GetLastInputInfo API.
+
+    Uses ctypes so it needs no extra dependency. Returns 0.0 on any failure
+    (treated as active — fail-open).
+    """
+    try:
+        import ctypes
+
+        class _LASTINPUTINFO(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+        info = _LASTINPUTINFO()
+        info.cbSize = ctypes.sizeof(_LASTINPUTINFO)
+        if not ctypes.windll.user32.GetLastInputInfo(ctypes.byref(info)):
+            return 0.0
+        millis = ctypes.windll.kernel32.GetTickCount() - info.dwTime
+        return max(0.0, millis / 1000.0)
+    except Exception:  # pragma: no cover — non-Windows / API failure
+        log.debug("GetLastInputInfo failed", exc_info=True)
+        return 0.0
+
+
+def _win_is_locked() -> bool:
+    """True if the workstation is locked.
+
+    OpenInputDesktop fails when the secure (lock) desktop is active, so an
+    inability to open the input desktop is a reliable lock signal. Returns False
+    on failure (fail-open).
+    """
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        # DESKTOP_SWITCHDESKTOP = 0x0100
+        hdesk = user32.OpenInputDesktop(0, False, 0x0100)
+        if not hdesk:
+            return True  # can't open input desktop → locked
+        user32.CloseDesktop(hdesk)
+        return False
+    except Exception:  # pragma: no cover — non-Windows / API failure
+        log.debug("OpenInputDesktop check failed", exc_info=True)
+        return False
 
 
 def _foreground_window_info() -> tuple[int, int, str | None]:

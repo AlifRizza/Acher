@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Block, Screenshot } from "../types";
-import { listScreenshotsInRange, searchScreenshots } from "../lib/api";
+import type { ActivitySpan, Block, Screenshot } from "../types";
+import { getActivity, listScreenshotsInRange, searchScreenshots } from "../lib/api";
 import {
   buildBlocks,
   dayBounds,
   dayISOBounds,
   estimateIntervalMs,
   formatDuration,
+  spansToBlocks,
   todayStr,
 } from "../lib/timeline";
 import { TimelineRow } from "../components/TimelineRow";
@@ -25,7 +26,13 @@ const ZOOMS: { label: string; windowHours: number }[] = [
 const BASE_WIDTH = 1100; // px the zoom window maps onto
 
 // All timeline rows are toggleable (Q2). Order top→bottom.
-const ROW_KEYS = ["Applications", "Browser Tabs", "Screenshots", "Manual Entries"] as const;
+const ROW_KEYS = [
+  "Computer Usage",
+  "Applications",
+  "Browser Tabs",
+  "Screenshots",
+  "Manual Entries",
+] as const;
 type RowKey = (typeof ROW_KEYS)[number];
 
 // Shift a YYYY-MM-DD string by ±n days.
@@ -40,10 +47,12 @@ function addDays(dateStr: string, n: number): string {
 export function DayView() {
   const [date, setDate] = useState(todayStr());
   const [shots, setShots] = useState<Screenshot[]>([]);
+  const [spans, setSpans] = useState<ActivitySpan[]>([]);
   const [zoom, setZoom] = useState(0); // index into ZOOMS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState<Record<RowKey, boolean>>({
+    "Computer Usage": true,
     Applications: true,
     "Browser Tabs": true,
     Screenshots: true,
@@ -75,8 +84,12 @@ export function DayView() {
     setLoading(true);
     setError(null);
     const { startISO, endISO } = dayISOBounds(date);
-    listScreenshotsInRange(startISO, endISO)
-      .then((page) => !cancelled && setShots(page.items))
+    Promise.all([listScreenshotsInRange(startISO, endISO), getActivity(startISO, endISO)])
+      .then(([page, act]) => {
+        if (cancelled) return;
+        setShots(page.items);
+        setSpans(act.rows);
+      })
       .catch((e) => !cancelled && setError(String(e)))
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -84,15 +97,30 @@ export function DayView() {
     };
   }, [date]);
 
-  // ---- block building (one pass over the day's captures) ----
+  // ---- block building ----
   const intervalMs = useMemo(() => estimateIntervalMs(shots), [shots]);
+  // Prefer real activity spans (second-accurate). Fall back to screenshot-
+  // inferred blocks when no spans exist (e.g. data captured before the watcher).
+  const hasSpans = spans.length > 0;
+  const activeSpans = useMemo(() => spans.filter((s) => s.state === "active"), [spans]);
   const appBlocks = useMemo(
-    () => buildBlocks(shots, (s) => s.app_name, intervalMs),
-    [shots, intervalMs],
+    () =>
+      hasSpans
+        ? spansToBlocks(activeSpans, shots, (s) => s.app_name)
+        : buildBlocks(shots, (s) => s.app_name, intervalMs),
+    [hasSpans, activeSpans, shots, intervalMs],
   );
   const tabBlocks = useMemo(
-    () => buildBlocks(shots, (s) => s.tab_title, intervalMs),
-    [shots, intervalMs],
+    () =>
+      hasSpans
+        ? spansToBlocks(activeSpans, shots, (s) => s.tab_title)
+        : buildBlocks(shots, (s) => s.tab_title, intervalMs),
+    [hasSpans, activeSpans, shots, intervalMs],
+  );
+  // Computer Usage row: every span, labelled by state (active/idle/locked).
+  const usageBlocks = useMemo(
+    () => spansToBlocks(spans, shots, (s) => s.state),
+    [spans, shots],
   );
   // Screenshots + Manual rows are one block per capture (point markers).
   const shotMarkers = useMemo<Block[]>(
@@ -223,7 +251,8 @@ export function DayView() {
     return out;
   }, [dayStartMs, pxPerMs, zoom]);
 
-  const rowData: Record<RowKey, { blocks: Block[]; variant: "bar" | "marker" }> = {
+  const rowData: Record<RowKey, { blocks: Block[]; variant: "bar" | "marker" | "usage" }> = {
+    "Computer Usage": { blocks: usageBlocks, variant: "usage" },
     Applications: { blocks: appBlocks, variant: "bar" },
     "Browser Tabs": { blocks: tabBlocks, variant: "bar" },
     Screenshots: { blocks: shotMarkers, variant: "marker" },
@@ -277,6 +306,13 @@ export function DayView() {
           </label>
         ))}
         <span className="muted small">{shots.length} captures</span>
+        {visible["Computer Usage"] && hasSpans && (
+          <span className="usage-legend">
+            <span><span className="swatch" style={{ background: "#3fb950" }} />active</span>
+            <span><span className="swatch" style={{ background: "#d29922" }} />idle</span>
+            <span><span className="swatch" style={{ background: "#6e7681" }} />off</span>
+          </span>
+        )}
       </div>
 
       {error && <div className="error">Failed to load: {error}</div>}

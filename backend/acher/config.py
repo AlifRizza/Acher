@@ -33,6 +33,9 @@ class Config:
     browsers: list[str] = field(default_factory=lambda: ["Chrome", "Arc", "Brave"])
     drive_connected: bool = False
     port: int = 7823
+    # Activity watcher (idle + screen-off detection).
+    idle_threshold_minutes: int = 5  # no input for this long → 'idle', capture pauses
+    activity_sample_seconds: int = 5  # how often the watcher samples presence/app
 
     def validate(self) -> None:
         """Raise ValueError on any invalid field. Called on load and on save."""
@@ -54,6 +57,14 @@ class Config:
             )
         if not (1024 <= self.port <= 65535):
             raise ValueError(f"port must be in [1024, 65535], got {self.port}")
+        if not (1 <= self.idle_threshold_minutes <= 120):
+            raise ValueError(
+                f"idle_threshold_minutes must be in [1, 120], got {self.idle_threshold_minutes}"
+            )
+        if not (1 <= self.activity_sample_seconds <= 60):
+            raise ValueError(
+                f"activity_sample_seconds must be in [1, 60], got {self.activity_sample_seconds}"
+            )
 
 
 def load(path: Path | None = None) -> Config:
@@ -76,6 +87,12 @@ def load(path: Path | None = None) -> Config:
         browsers=list(raw.get("browsers", defaults.browsers)),
         drive_connected=bool(raw.get("drive_connected", defaults.drive_connected)),
         port=int(raw.get("port", defaults.port)),
+        idle_threshold_minutes=int(
+            raw.get("idle_threshold_minutes", defaults.idle_threshold_minutes)
+        ),
+        activity_sample_seconds=int(
+            raw.get("activity_sample_seconds", defaults.activity_sample_seconds)
+        ),
     )
     cfg.validate()
     return cfg

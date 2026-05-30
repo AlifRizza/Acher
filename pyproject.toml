@@ -15,6 +15,8 @@ dependencies = [
   # macOS: NSWorkspace for frontmost app. AppleScript via /usr/bin/osascript
   # (stdlib subprocess, no python dep). Screenshot via /usr/sbin/screencapture.
   "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+  # Quartz: idle-time + screen-lock detection for the activity watcher.
+  "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
   # --- Phase 4: local read API (timeline + image serving), served by the daemon ---
   # Core, not optional: the timeline is a primary feature and the Web UI (Phase 7)
   # is built on this API. Bound to 127.0.0.1 only. Plain uvicorn (no [standard])

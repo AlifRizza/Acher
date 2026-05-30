@@ -112,6 +112,16 @@ class MacPlatform(Platform):
         tab_title = _tab_title_for_app(app_name, tracked_browsers)
         return ActiveWindow(app_name=app_name, tab_title=tab_title)
 
+    # ----- activity / presence -----
+
+    def get_idle_seconds(self) -> float:
+        """Seconds since last input via Quartz CGEventSource. 0.0 on failure."""
+        return _quartz_idle_seconds()
+
+    def is_screen_locked(self) -> bool:
+        """True if the screen is locked or display asleep (Quartz session dict)."""
+        return _screen_is_locked()
+
     # ----- Phase 5: manual capture -----
 
     def prompt_manual_note(self) -> tuple[str, str] | None:
@@ -250,6 +260,58 @@ def _as_str(text: str) -> str:
 
 
 # ---------- helpers (module-level so we don't pay import cost at class scope) ----------
+
+
+# Quartz event type for "any input" — CGEventSourceSecondsSinceLastEventType
+# with this constant returns seconds since the last keyboard OR mouse event.
+_K_CG_ANY_INPUT_EVENT_TYPE = 0xFFFFFFFF  # kCGAnyInputEventType
+_K_CG_EVENT_SOURCE_STATE_COMBINED = 0  # kCGEventSourceStateCombinedSessionState
+
+
+def _quartz_idle_seconds() -> float:
+    """Seconds since the last input event, via Quartz. 0.0 if unavailable.
+
+    Lazy import so the module stays importable where pyobjc-Quartz is absent;
+    on failure we return 0.0 (treated as "active" — fail-open, never wrongly
+    pause capture).
+    """
+    try:
+        from Quartz import (  # type: ignore
+            CGEventSourceSecondsSinceLastEventType,
+        )
+    except ImportError:  # pragma: no cover — only on misconfigured installs
+        return 0.0
+    try:
+        return float(
+            CGEventSourceSecondsSinceLastEventType(
+                _K_CG_EVENT_SOURCE_STATE_COMBINED, _K_CG_ANY_INPUT_EVENT_TYPE
+            )
+        )
+    except Exception:
+        log.debug("Quartz idle query failed", exc_info=True)
+        return 0.0
+
+
+def _screen_is_locked() -> bool:
+    """True if the screen is locked or the display is asleep.
+
+    Reads the current session dictionary; `CGSSessionScreenIsLocked` is set when
+    the lock screen is up. We also treat display-asleep as locked. On failure we
+    return False (fail-open — keep capturing rather than silently going dark).
+    """
+    try:
+        from Quartz import CGSessionCopyCurrentDictionary  # type: ignore
+    except ImportError:  # pragma: no cover
+        return False
+    try:
+        session = CGSessionCopyCurrentDictionary()
+        if not session:
+            return False
+        # Value is 1 when locked. Key absent when unlocked.
+        return bool(session.get("CGSSessionScreenIsLocked", 0))
+    except Exception:
+        log.debug("Quartz session query failed", exc_info=True)
+        return False
 
 
 def _frontmost_app_name() -> str | None:

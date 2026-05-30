@@ -39,6 +39,8 @@ class Daemon:
         self._hotkey = None
         self._retention = None
         self._retention_thread: threading.Thread | None = None
+        self._activity = None
+        self._activity_thread: threading.Thread | None = None
 
     def request_stop(self) -> None:
         """Signal the loop (and workers) to exit after the current tick. Thread-safe."""
@@ -51,6 +53,8 @@ class Daemon:
             self._hotkey.stop()
         if self._retention is not None:
             self._retention.request_stop()
+        if self._activity is not None:
+            self._activity.request_stop()
 
     def run(self) -> int:
         """Run until stopped. Returns process exit code."""
@@ -128,6 +132,11 @@ class Daemon:
             self._retention.request_stop()
         if self._retention_thread is not None:
             self._retention_thread.join(timeout=10)
+
+        if self._activity is not None:
+            self._activity.request_stop()
+        if self._activity_thread is not None:
+            self._activity_thread.join(timeout=10)
 
         log.info("Acher daemon stopped")
         return 0

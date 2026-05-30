@@ -4,5 +4,7 @@
   "hotkey": "ctrl+alt+shift+s",
   "browsers": ["Chrome", "Arc", "Brave"],
   "drive_connected": false,
-  "port": 7823
+  "port": 7823,
+  "idle_threshold_minutes": 5,
+  "activity_sample_seconds": 5
 }

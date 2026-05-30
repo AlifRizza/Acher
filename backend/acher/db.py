@@ -1,9 +1,10 @@
 """SQLite schema, connection, and migrations.
 
-One database file lives at `platform.db_path`. Two tables:
+One database file lives at `platform.db_path`. Three tables:
 
 - `screenshots`   — one row per capture (auto or manual)
 - `upload_queue`  — pending/failed Drive uploads
+- `activity`      — continuous active/idle/locked spans (the activity watcher)
 
 Concurrency: the daemon writes; the FastAPI server reads. We open the DB in
 WAL mode so readers never block the writer and vice versa.
@@ -23,7 +24,7 @@ from typing import Iterator
 from .platform import platform
 
 # Bump this whenever the schema changes (then add a matching _migrate_v{N} fn).
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 SCHEMA_SQL = """
@@ -62,6 +63,26 @@ CREATE TABLE IF NOT EXISTS upload_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_queue_status ON upload_queue(status);
+
+-- Continuous activity spans (schema v2). The activity watcher samples the
+-- foreground app every few seconds and merges consecutive same-state samples
+-- into one span, so this stays small (a few rows per app session, not one row
+-- per sample). `state` distinguishes real work from idle/locked time:
+--   'active' — user present, app in foreground (app_name set)
+--   'idle'   — no input for longer than the idle threshold (app_name nullable)
+--   'locked' — screen locked / display asleep (no app, no screenshots taken)
+CREATE TABLE IF NOT EXISTS activity (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_ts    TEXT    NOT NULL,                 -- ISO8601 UTC, span start
+    end_ts      TEXT    NOT NULL,                 -- ISO8601 UTC, span end (extended as it grows)
+    state       TEXT    NOT NULL                  -- 'active' | 'idle' | 'locked'
+                        CHECK (state IN ('active', 'idle', 'locked')),
+    app_name    TEXT,                             -- foreground app while 'active'; else NULL
+    tab_title   TEXT                              -- foreground browser tab while 'active'; else NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_start ON activity(start_ts);
+CREATE INDEX IF NOT EXISTS idx_activity_end   ON activity(end_ts);
 
 -- Tracks applied migrations.
 CREATE TABLE IF NOT EXISTS schema_version (

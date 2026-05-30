@@ -19,6 +19,7 @@
 ## Features
 
 - ⏱ **Automatic capture** — a screenshot every N minutes (default 3), tagged with the active app and, for supported browsers, the active tab title.
+- 📡 **Activity watcher** — samples the foreground app every few seconds to build a second-accurate timeline, detects when you're **idle** or the **screen is off/locked**, and pauses screenshots during those times (no blank captures, honest away-from-keyboard gaps).
 - ⌨️ **Manual capture** — a global hotkey (default ⌃⌥⇧S) pops a native dialog for an activity note + tags, then captures.
 - 🗂 **Timeline UI** — browse, search, and filter captures by app; click any thumbnail for the full-size screenshot and its metadata.
 - 📊 **Timesheet + export** — per-app time roll-up over any date range, downloadable as CSV or XLSX.
@@ -156,6 +157,8 @@ npm run build     # outputs to frontend/dist/
 - `hotkey` — modifiers + key, e.g. `ctrl+alt+shift+s` (`cmd`/`option` also accepted).
 - `browsers` — which browsers to read tab titles from (`Chrome`, `Arc`, `Brave`, `Safari`).
 - `port` — local API port (loopback only).
+- `idle_threshold_minutes` — no input for this long marks you idle and pauses capture (1–120).
+- `activity_sample_seconds` — how often the activity watcher samples presence (1–60).
 
 ### Timesheet export
 

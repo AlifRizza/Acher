@@ -13,6 +13,7 @@ Endpoints:
 - GET /api/timesheet                  per-app time roll-up (JSON)
 - GET /api/timesheet/export           same, as a CSV / XLSX download
 - GET /api/search                     match app/tab/note/tags (timeline search)
+- GET /api/activity                   continuous active/idle/locked spans
 
 `create_app()` builds the app (used directly by tests); `make_server()` wraps it
 in a uvicorn Server the daemon runs in a background thread.
@@ -124,6 +125,11 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     ) -> dict:
         # Searches app name, tab title, activity note, and tags. Read-only.
         return queries.search(q, limit=limit, db_path=db_path)
+
+    @app.get("/api/activity")
+    def get_activity(start: str | None = None, end: str | None = None) -> dict:
+        # Continuous active/idle/locked spans for the timeline's app + usage rows.
+        return queries.activity(start=start, end=end, db_path=db_path)
 
     return app
 

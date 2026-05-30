@@ -17,9 +17,17 @@ export interface TimelineRowProps {
   onHover: (block: Block, clientX: number, clientY: number) => void;
   onLeave: () => void;
   onClick: (block: Block) => void;
-  // Render style: "bar" = wide colored blocks; "marker" = thin ticks/flags.
-  variant?: "bar" | "marker";
+  // Render style: "bar" = wide colored blocks; "marker" = thin ticks/flags;
+  // "usage" = active/idle/locked colored by fixed state colors.
+  variant?: "bar" | "marker" | "usage";
 }
+
+// Fixed colors for the Computer Usage row (block.label is the state name).
+const STATE_COLORS: Record<string, string> = {
+  active: "#3fb950", // green — working
+  idle: "#d29922", // amber — away
+  locked: "#6e7681", // gray — screen off
+};
 
 export function TimelineRow(props: TimelineRowProps) {
   const { blocks, viewStartMs, pxPerMs, matchedShotIds, variant = "bar" } = props;
@@ -33,17 +41,17 @@ export function TimelineRow(props: TimelineRowProps) {
           const width = Math.max(variant === "marker" ? 3 : 2, (b.endMs - b.startMs) * pxPerMs);
           const dimmed =
             matchedShotIds !== null && !b.shots.some((s) => matchedShotIds.has(s.id));
+          const bg =
+            variant === "usage"
+              ? STATE_COLORS[b.label] ?? colorForLabel(b.label)
+              : variant === "marker" && props.label === "Manual Entries"
+                ? "var(--accent)"
+                : colorForLabel(b.label);
           return (
             <div
               key={i}
               className={`block ${variant} ${dimmed ? "dimmed" : ""}`}
-              style={{
-                left,
-                width,
-                background: variant === "marker" && props.label === "Manual Entries"
-                  ? "var(--accent)"
-                  : colorForLabel(b.label),
-              }}
+              style={{ left, width, background: bg }}
               title={b.label}
               onMouseMove={(e) => props.onHover(b, e.clientX, e.clientY)}
               onMouseEnter={(e) => props.onHover(b, e.clientX, e.clientY)}
