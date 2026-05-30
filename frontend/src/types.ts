@@ -53,6 +53,18 @@ export interface Block {
   shots: Screenshot[]; // captures that make up this block, time-ordered
 }
 
+// Runtime settings (mirrors backend Config / config.json).
+export interface AppConfig {
+  interval_minutes: number;
+  retention_period: string;
+  hotkey: string;
+  browsers: string[];
+  drive_connected: boolean;
+  port: number;
+  idle_threshold_minutes: number;
+  activity_sample_seconds: number;
+}
+
 // A continuous activity span from the backend watcher (second-accurate).
 export interface ActivitySpan {
   id: number;

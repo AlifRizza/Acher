@@ -16,6 +16,8 @@ Endpoints:
 - GET /api/timesheet/export           same, as a CSV / XLSX download
 - GET /api/search                     match app/tab/note/tags (timeline search)
 - GET /api/activity                   continuous active/idle/locked spans
+- GET /api/config                     current runtime settings
+- PUT /api/config                     update settings (applied on daemon restart)
 
 `create_app()` builds the app (used directly by tests); `make_server()` wraps it
 in a uvicorn Server the daemon runs in a background thread.
@@ -132,6 +134,31 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     def get_activity(start: str | None = None, end: str | None = None) -> dict:
         # Continuous active/idle/locked spans for the timeline's app + usage rows.
         return queries.activity(start=start, end=end, db_path=db_path)
+
+    @app.get("/api/config")
+    def get_config() -> dict:
+        # Current runtime settings for the Settings tab.
+        from dataclasses import asdict
+
+        return asdict(config_mod.load())
+
+    @app.put("/api/config")
+    def put_config(patch: dict) -> dict:
+        # Apply a partial settings update, validate, and persist to config.json.
+        # The daemon reads config at startup, so changes take effect on its next
+        # restart — the UI tells the user this. 400 on any invalid value.
+        from dataclasses import asdict, replace
+
+        current = config_mod.load()
+        # Only allow updating known fields; ignore anything else the client sends.
+        allowed = set(asdict(current).keys())
+        updates = {k: v for k, v in patch.items() if k in allowed}
+        try:
+            updated = replace(current, **updates)
+            config_mod.save(updated)  # save() validates before writing
+        except (ValueError, TypeError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        return asdict(updated)
 
     # Serve the built React UI (frontend/dist) at the root, so the daemon hosts
     # both the API and the GUI as one process — no separate Vite server needed in

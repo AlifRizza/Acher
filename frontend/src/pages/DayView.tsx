@@ -15,6 +15,7 @@ import { ScreenshotPopup, type PopupData } from "../components/ScreenshotPopup";
 import { MiniScrubber } from "../components/MiniScrubber";
 import { SearchPanel } from "../components/SearchPanel";
 import { ScreenshotModal } from "../components/ScreenshotModal";
+import { ScreenshotCard } from "../components/ScreenshotCard";
 
 // Zoom presets (Q12): how much of the day fills the base viewport width.
 const ZOOMS: { label: string; windowHours: number }[] = [
@@ -357,6 +358,27 @@ export function DayView() {
           appBlocks={appBlocks}
           onSeek={seekTo}
         />
+      )}
+
+      {/* Screenshot grid for the selected day, newest first (the classic grid
+          view, kept below the timeline). Dimmed when it doesn't match an active
+          search, mirroring the timeline's highlight behavior. */}
+      {shots.length > 0 && (
+        <div className="day-grid-section">
+          <h2 className="day-grid-title">Screenshots — {date}</h2>
+          <div className="grid">
+            {[...shots]
+              .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+              .map((s) => (
+                <div
+                  key={s.id}
+                  className={matchedShotIds && !matchedShotIds.has(s.id) ? "dimmed" : ""}
+                >
+                  <ScreenshotCard shot={s} onOpen={setSelected} />
+                </div>
+              ))}
+          </div>
+        </div>
       )}
 
       {popup && <ScreenshotPopup data={popup} />}

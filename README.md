@@ -21,7 +21,8 @@
 - ⏱ **Automatic capture** — a screenshot every N minutes (default 3), tagged with the active app and, for supported browsers, the active tab title.
 - 📡 **Activity watcher** — samples the foreground app every few seconds to build a second-accurate timeline, detects when you're **idle** or the **screen is off/locked**, and pauses screenshots during those times (no blank captures, honest away-from-keyboard gaps).
 - ⌨️ **Manual capture** — a global hotkey (default ⌃⌥⇧S) pops a native dialog for an activity note + tags, then captures.
-- 🗂 **Timeline UI** — browse, search, and filter captures by app; click any thumbnail for the full-size screenshot and its metadata.
+- 🗂 **Timeline UI** — a multi-row day timeline (apps, browser tabs, computer usage) with a screenshot grid below it; hover any block for a preview, search, and click any thumbnail for the full-size screenshot and its metadata.
+- ⚙️ **Settings tab** — edit the capture interval, idle threshold, retention, hotkey, and tracked browsers from the GUI (applied on the daemon's next restart).
 - 📊 **Timesheet + export** — per-app time roll-up over any date range, downloadable as CSV or XLSX.
 - ☁️ **Optional Drive sync** — uploads each screenshot to your own Google Drive with offline buffering and exponential-backoff retry. Off by default.
 - 🧹 **Retention** — automatically deletes screenshots older than your chosen window (1 week → 6 months, or never).
@@ -184,13 +185,16 @@ running. The `npm run dev` server above is only for live frontend development.
 }
 ```
 
-- `interval_minutes` — capture cadence: `1`, `3`, or `5`.
+- `interval_minutes` — capture cadence: any whole number from `1` to `120`.
 - `retention_period` — `1_week`, `1_month`, `3_months`, `6_months`, or `never`.
 - `hotkey` — modifiers + key, e.g. `ctrl+alt+shift+s` (`cmd`/`option` also accepted).
 - `browsers` — which browsers to read tab titles from (`Chrome`, `Arc`, `Brave`, `Safari`).
 - `port` — local API port (loopback only).
 - `idle_threshold_minutes` — no input for this long marks you idle and pauses capture (1–120).
 - `activity_sample_seconds` — how often the activity watcher samples presence (1–60).
+
+You can edit all of these in the GUI's **Settings** tab (no need to hand-edit
+`config.json`). Saved changes take effect the next time the daemon restarts.
 
 ### Timesheet export
 

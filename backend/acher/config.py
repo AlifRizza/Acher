@@ -20,7 +20,9 @@ from pathlib import Path
 # whether the package is installed editable (-e) or imported from source.
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.json"
 
-ALLOWED_INTERVALS = (1, 3, 5)
+# Capture interval is any integer in this inclusive range, in minutes.
+MIN_INTERVAL_MINUTES = 1
+MAX_INTERVAL_MINUTES = 120
 ALLOWED_RETENTION = ("1_week", "1_month", "3_months", "6_months", "never")
 SUPPORTED_BROWSERS = ("Safari", "Chrome", "Firefox", "Arc", "Brave")
 
@@ -39,10 +41,10 @@ class Config:
 
     def validate(self) -> None:
         """Raise ValueError on any invalid field. Called on load and on save."""
-        if self.interval_minutes not in ALLOWED_INTERVALS:
+        if not (MIN_INTERVAL_MINUTES <= self.interval_minutes <= MAX_INTERVAL_MINUTES):
             raise ValueError(
-                f"interval_minutes must be one of {ALLOWED_INTERVALS}, "
-                f"got {self.interval_minutes!r}"
+                f"interval_minutes must be in [{MIN_INTERVAL_MINUTES}, "
+                f"{MAX_INTERVAL_MINUTES}], got {self.interval_minutes!r}"
             )
         if self.retention_period not in ALLOWED_RETENTION:
             raise ValueError(
