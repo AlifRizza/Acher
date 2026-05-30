@@ -202,6 +202,7 @@ body {
 }
 
 .card {
+  width: 100%; /* fill the grid cell — cards are sometimes wrapped in a div */
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;

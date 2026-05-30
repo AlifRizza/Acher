@@ -6,8 +6,8 @@
 #   1. creates a Python venv and installs Acher
 #   2. builds the React UI (so the daemon can serve it)
 #   3. initializes the database
-#   4. registers Acher to auto-start at login (background)
-#   5. starts it now and opens the GUI in your browser
+#   4. stops any old daemon, then registers Acher to auto-start at login
+#   5. waits for it to come up and opens the GUI in your browser
 #
 # Re-running is safe (idempotent). Requires: python3, and node/npm for the UI.
 #
@@ -19,7 +19,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-PORT="$(python3 -c 'import json,sys; print(json.load(open("config.json")).get("port",7823))' 2>/dev/null || echo 7823)"
+PORT="$(python3 -c 'import json; print(json.load(open("config.json")).get("port",7823))' 2>/dev/null || echo 7823)"
 URL="http://127.0.0.1:${PORT}"
 
 echo "==> Acher installer"
@@ -49,25 +49,38 @@ fi
 echo "==> Initializing database"
 acher init
 
-# --- 4. Register auto-start at login ---
+# --- 4. Stop any daemon already running, then register auto-start ---
+# This prevents duplicates: a stale foreground/nohup daemon from a previous run
+# would keep the old code and hold the port, so we clear it first. launchd is
+# then the SINGLE thing that starts the daemon (its RunAtLoad starts it now),
+# so we never get two daemons fighting over the port.
+echo "==> Stopping any running Acher daemon"
+acher uninstall >/dev/null 2>&1 || true
+pkill -f "acher.cli start" 2>/dev/null || true
+pkill -f "acher start" 2>/dev/null || true
+sleep 1
+
 echo "==> Registering auto-start at login"
 acher install
 
-# --- 5. Start now (background) and open the browser ---
-# `acher install` registers the login agent but doesn't necessarily start it
-# this instant, so launch a detached daemon for the current session too.
-if ! curl -sf "${URL}/api/health" >/dev/null 2>&1; then
-  echo "==> Starting Acher in the background"
-  nohup acher start >/dev/null 2>&1 &
-fi
-
-# Wait for the server to come up, then open the GUI.
+# --- 5. Wait for it to come up, then open the GUI ---
 echo -n "==> Waiting for Acher to start"
 for _ in $(seq 1 40); do
   if curl -sf "${URL}/api/health" >/dev/null 2>&1; then break; fi
   echo -n "."; sleep 0.25
 done
 echo
+
+# Fallback: if launchd didn't bring it up, start a detached daemon for now.
+if ! curl -sf "${URL}/api/health" >/dev/null 2>&1; then
+  echo "==> launchd didn't start it; starting in the background"
+  nohup acher start >/dev/null 2>&1 &
+  for _ in $(seq 1 40); do
+    if curl -sf "${URL}/api/health" >/dev/null 2>&1; then break; fi
+    echo -n "."; sleep 0.25
+  done
+  echo
+fi
 
 if curl -sf "${URL}/api/health" >/dev/null 2>&1; then
   echo "==> Acher is running at ${URL}"
@@ -76,7 +89,7 @@ if curl -sf "${URL}/api/health" >/dev/null 2>&1; then
   fi
 else
   echo "!!  Acher did not respond yet. Check the log:"
-  echo "    $(acher paths | python3 -c 'import json,sys;print(json.load(sys.stdin)["log_path"])' 2>/dev/null || echo '~/Library/Application Support/Acher/acher.log')"
+  echo "    ~/Library/Application Support/Acher/acher.log"
 fi
 
 echo
