@@ -60,6 +60,11 @@ frontend/.vite/
 frontend/vite.config.d.ts
 frontend/vite.config.js
 
+# --- Claude Code local tooling (machine-specific, not project files) ---
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/*.lock
+
 # --- IDE / OS ---
 .vscode/
 .idea/
