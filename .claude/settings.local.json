@@ -60,7 +60,18 @@
       "Bash(grep -E 'tsbuildinfo|vite.config.\\(d.ts|js\\)$')",
       "Bash(grep -E 'tsbuildinfo|vite\\\\.config\\\\.\\(d\\\\.ts|js\\)$')",
       "Bash(git rm *)",
-      "Bash(git commit --amend -q --reset-author -m ' *)"
+      "Bash(git commit --amend -q --reset-author -m ' *)",
+      "Bash(command -v brew)",
+      "Bash(brew --version)",
+      "Bash(echo \"brew: $\\(brew --version)",
+      "Bash(brew install *)",
+      "Bash(gh api *)",
+      "Bash(echo \"account: $\\(gh api user --jq .login 2>&1\\)\")",
+      "Bash(cd *)",
+      "Bash(gh repo *)",
+      "Bash(git ls-remote *)",
+      "Bash(git remote *)",
+      "Bash(awk '{print \"remote_main \"$1}')"
     ]
   }
 }

@@ -249,3 +249,9 @@ Acher captures screenshots of your screen on an interval. Everything is stored
 **locally** by default — there is no telemetry and no network activity unless you
 explicitly enable Google Drive sync. Secrets (`.env`, OAuth tokens) are
 git-ignored and stored outside the repo.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 AlifRizza
