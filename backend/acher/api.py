@@ -2,7 +2,9 @@
 
 A small FastAPI app the daemon serves on 127.0.0.1 (loopback only — never
 exposed off-host). It reads the WAL database; the daemon remains the sole
-writer. The Web UI (Phase 7) is built on these endpoints.
+writer. The Web UI is built on these endpoints — and in a production install
+the same app also serves the built UI (frontend/dist) at '/', so the daemon
+hosts API + GUI as one process (no separate Vite server needed).
 
 Endpoints:
 - GET /api/health                     liveness probe
@@ -131,7 +133,25 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         # Continuous active/idle/locked spans for the timeline's app + usage rows.
         return queries.activity(start=start, end=end, db_path=db_path)
 
+    # Serve the built React UI (frontend/dist) at the root, so the daemon hosts
+    # both the API and the GUI as one process — no separate Vite server needed in
+    # production. Mounted LAST so /api/* routes always take priority. Skipped when
+    # the build is absent (dev/test), leaving the app API-only.
+    _mount_frontend(app)
+
     return app
+
+
+def _mount_frontend(app: FastAPI) -> None:
+    """Mount `frontend/dist` at '/' if it has been built. No-op otherwise."""
+    # api.py → acher → backend → <repo root> → frontend/dist
+    dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if not (dist / "index.html").is_file():
+        return
+    from fastapi.staticfiles import StaticFiles
+
+    # html=True serves index.html for '/' and for unknown paths (SPA-friendly).
+    app.mount("/", StaticFiles(directory=str(dist), html=True), name="frontend")
 
 
 def make_server(cfg: Config, db_path: Path | None = None):

@@ -56,7 +56,35 @@
 
 ---
 
-## Installation
+## Quick install (one command)
+
+The fastest way — installs everything, builds the GUI, registers auto-start at
+login, starts Acher in the background, and opens the timeline in your browser:
+
+```bash
+git clone https://github.com/<your-account>/Acher.git
+cd Acher
+./install.sh
+```
+
+That's it. After it finishes, Acher runs in the background (and on every login)
+and the GUI + API are served together at **http://127.0.0.1:7823**. The script
+is safe to re-run.
+
+> **macOS:** grant **Screen Recording** (for real screenshots) and, for the
+> global hotkey, **Accessibility** — to your terminal. See
+> [`docs/permissions-setup.md`](docs/permissions-setup.md). The installer can't
+> grant these for you.
+
+To stop auto-start later: `acher uninstall`. Requires `python3`, plus `node`/`npm`
+for the GUI (the script still works without npm — it just runs API-only).
+
+---
+
+## Manual installation
+
+Prefer to do it step by step (or on Windows, where `install.sh` doesn't run)?
+Follow these.
 
 ### 1. Clone and set up the backend
 
@@ -121,6 +149,10 @@ To build the production bundle:
 ```bash
 npm run build     # outputs to frontend/dist/
 ```
+
+Once built, **the daemon serves the GUI itself** — no Vite server needed. Just
+open **http://127.0.0.1:7823** (same port as the API) while `acher start` is
+running. The `npm run dev` server above is only for live frontend development.
 
 ---
 
